@@ -4,16 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Blue · Live Ocean Telemetry System</title>
-  <meta name="description" content="telemetry for Blue" />
+  <meta name="description" content="Real-time global satellite ocean telemetry for Blue the Bottlenose dolphin." />
   <meta name="theme-color" content="#0b0f19" />
 
   <!-- Web App & Mobile Icon Meta Tags -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Blue" />
+  <meta name="apple-mobile-web-app-title" content="Blue Tracker" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <link rel="apple-touch-icon" href="https://img.icons8.com/color/512/dolphin.png" />
-  <link rel="icon" type="image/png" href="https://img.icons8.com/color/512/dolphin.png" />
+  <link rel="apple-touch-icon" href="Blue.jpg" />
+  <link rel="icon" type="image/png" href="Blue.jpg" />
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -75,35 +75,66 @@
 <body class="relative w-full h-screen bg-[#0b0f19] text-slate-100 font-sans overflow-hidden flex flex-col">
 
   <!-- TELEMETRY INITIALIZATION LOADING SCREEN -->
-  <div id="loadingOverlay" class="fixed inset-0 z-50 bg-[#060911] flex flex-col items-center justify-center p-6 transition-opacity duration-700">
+  <div id="loadingOverlay" class="fixed inset-0 z-50 bg-[#060911] flex flex-col items-center justify-between p-6 transition-opacity duration-700">
     
-    <!-- Dynamic Time-Based Greeting for Katelynn -->
-    <div id="greetingText" class="text-center font-mono font-bold text-cyan-400 text-sm tracking-wider uppercase mb-6 drop-shadow-[0_0_10px_rgba(0,240,255,0.6)]">
-      Good morning Katelynn
-    </div>
+    <div></div> <!-- Spacer -->
 
-    <div class="relative w-32 h-32 mb-6 flex items-center justify-center">
-      <div class="absolute inset-0 rounded-full border border-cyan-500/30"></div>
-      <div class="absolute inset-3 rounded-full border border-cyan-500/20"></div>
-      <div class="absolute inset-8 rounded-full border border-cyan-500/40"></div>
-      <div class="absolute inset-0 rounded-full border-t-2 border-cyan-400/80 sonar-line"></div>
-      <div class="relative z-10 w-10 h-10 text-cyan-400">
-        <svg viewBox="0 0 24 24" fill="currentColor" class="w-full h-full drop-shadow-[0_0_8px_rgba(0,240,255,0.8)]">
-          <path d="M3 20c2-3 5.5-8 11-8 4.5 0 7 2.5 7 2.5S17.5 7 10 7C5.5 7 3.5 13 3 20z" />
-        </svg>
+    <div class="flex flex-col items-center justify-center">
+      <!-- Dynamic Greeting Box -->
+      <div class="text-center mb-6 space-y-1">
+        <div id="greetingText" class="font-mono font-bold text-cyan-400 text-sm tracking-wider uppercase drop-shadow-[0_0_10px_rgba(0,240,255,0.6)]">
+          Good morning Katelynn
+        </div>
+        <div class="text-xs text-slate-300/90 font-mono italic tracking-wide">
+          Let's see where Blue is traveling today...
+        </div>
+      </div>
+
+      <div class="relative w-32 h-32 mb-6 flex items-center justify-center">
+        <div class="absolute inset-0 rounded-full border border-cyan-500/30"></div>
+        <div class="absolute inset-3 rounded-full border border-cyan-500/20"></div>
+        <div class="absolute inset-8 rounded-full border border-cyan-500/40"></div>
+        <div class="absolute inset-0 rounded-full border-t-2 border-cyan-400/80 sonar-line"></div>
+        <div class="relative z-10 w-10 h-10 text-cyan-400">
+          <svg viewBox="0 0 24 24" fill="currentColor" class="w-full h-full drop-shadow-[0_0_8px_rgba(0,240,255,0.8)]">
+            <path d="M3 20c2-3 5.5-8 11-8 4.5 0 7 2.5 7 2.5S17.5 7 10 7C5.5 7 3.5 13 3 20z" />
+          </svg>
+        </div>
+      </div>
+
+      <div class="text-center space-y-2">
+        <div class="flex items-center justify-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+          <h2 class="text-sm font-mono tracking-widest text-cyan-400 uppercase font-bold">Connecting Ocean Telemetry</h2>
+        </div>
+        <p id="loadingStatusText" class="text-xs text-slate-400 font-mono">Locking satellite ARGOS-SAT 9821...</p>
+      </div>
+
+      <div class="w-48 h-1 bg-slate-800 rounded-full mt-6 overflow-hidden">
+        <div id="loadingProgressBar" class="h-full bg-cyan-400 w-0 transition-all duration-300"></div>
       </div>
     </div>
 
-    <div class="text-center space-y-2">
-      <div class="flex items-center justify-center gap-2">
-        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
-        <h2 class="text-sm font-mono tracking-widest text-cyan-400 uppercase font-bold">Connecting Ocean Telemetry</h2>
-      </div>
-      <p id="loadingStatusText" class="text-xs text-slate-400 font-mono">Locking satellite ARGOS-SAT 9821...</p>
+    <!-- Credit Footer -->
+    <div class="text-center pb-2">
+      <p class="text-[10px] font-mono text-slate-500 tracking-wider">Designed and Developed by joshii007</p>
     </div>
+  </div>
 
-    <div class="w-48 h-1 bg-slate-800 rounded-full mt-6 overflow-hidden">
-      <div id="loadingProgressBar" class="h-full bg-cyan-400 w-0 transition-all duration-300"></div>
+  <!-- PWA Install Banner Prompt -->
+  <div id="pwaInstallBanner" class="fixed bottom-6 left-4 right-4 z-50 bg-slate-900/95 border border-cyan-500/60 p-4 rounded-2xl shadow-2xl backdrop-blur-xl flex items-center justify-between gap-3 translate-y-32 opacity-0 transition-all duration-500 pointer-events-none">
+    <div class="flex items-center gap-3">
+      <div class="w-12 h-12 rounded-xl bg-cyan-950 border border-cyan-500/40 flex items-center justify-center overflow-hidden shrink-0">
+        <img src="Blue.jpg" alt="App Icon" class="w-full h-full object-cover" />
+      </div>
+      <div>
+        <h4 class="text-xs font-bold text-white tracking-wide">Install Blue Tracker</h4>
+        <p class="text-[11px] text-slate-400">Add to your home screen for instant live satellite access.</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2 shrink-0">
+      <button onclick="dismissPwaPrompt()" class="px-3 py-1.5 rounded-xl bg-slate-800 text-xs font-semibold text-slate-300 hover:bg-slate-700 transition">Later</button>
+      <button id="pwaInstallBtn" class="px-3.5 py-1.5 rounded-xl bg-cyan-500 text-xs font-bold text-slate-950 hover:bg-cyan-400 transition shadow-lg shadow-cyan-500/20">Install</button>
     </div>
   </div>
 
@@ -268,29 +299,27 @@
       <!-- ABOUT TAB -->
       <div id="tab-about" class="space-y-4">
         <p class="leading-relaxed text-slate-300">
-          Blue is a resilient Bottlenose dolphin rescued during an ocean stranding event and successfully rehabilitated before being tagged and re-released into open waters. Fitted with an ARGOS satellite telemetry unit (Tag SAT-9821), Blue now traverses deep coastal shelves, riding high wave energy and hunting schooling fish along bay channels. Her movement data directly supports marine conservation tracking
-
-
+      Blue is a resilient Bottlenose dolphin rescued during an ocean stranding event and successfully rehabilitated before being tagged and re-released into open waters. Fitted with an ARGOS satellite telemetry unit (Tag SAT-9821), Blue now traverses deep coastal shelves, riding high wave energy and hunting schooling fish along bay channels. Her movement data directly supports marine conservation tracking.
         </p>
 
         <!-- Gallery Section 1: Blue -->
         <div class="space-y-2">
           <h3 class="text-[11px] font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
             <i data-lucide="camera" class="w-3.5 h-3.5"></i>
-            <span>Blue </span>
+            <span>Blue</span>
           </h3>
           <div class="grid grid-cols-3 gap-2">
-            <div onclick="blue.jpgauto=format&fit=crop&w=1200&q=80')" class="aspect-square rounded-lg overflow-hidden border border-slate-800 bg-slate-900 cursor-pointer hover:border-cyan-400 transition group relative">
-              <img src="blue.jpgauto=format&fit=crop&w=400&q=80" alt="Blue Surfacing" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+            <div onclick="openLightbox('Bluejpg')" class="aspect-square rounded-lg overflow-hidden border border-slate-800 bg-slate-900 cursor-pointer hover:border-cyan-400 transition group relative">
+              <img src="Blue.jpg"alt="Blue" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
               <div class="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[9px] font-mono text-slate-300">Surfacing</div>
             </div>
-            <div onclick="openLightbox('https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=1200&q=80')" class="aspect-square rounded-lg overflow-hidden border border-slate-800 bg-slate-900 cursor-pointer hover:border-cyan-400 transition group relative">
-              <img src="https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=400&q=80" alt="Blue Swimming" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+            <div onclick="openLightbox('Bluesurface.jpg')" class="aspect-square rounded-lg overflow-hidden border border-slate-800 bg-slate-900 cursor-pointer hover:border-cyan-400 transition group relative">
+              <img src="Bluesurface.jpg" alt="Blue Surface" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
               <div class="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[9px] font-mono text-slate-300">Cruising</div>
             </div>
-            <div onclick="openLightbox('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80')" class="aspect-square rounded-lg overflow-hidden border border-slate-800 bg-slate-900 cursor-pointer hover:border-cyan-400 transition group relative">
-              <img src="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=400&q=80" alt="Blue Leaping" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
-              <div class="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[9px] font-mono text-slate-300">Breaching</div>
+            <div onclick="openLightbox('Bluerescue.jpg')" class="aspect-square rounded-lg overflow-hidden border border-slate-800 bg-slate-900 cursor-pointer hover:border-cyan-400 transition group relative">
+              <img src="Bluerescue.jpg" alt="Blue rescue" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+              <div class="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[9px] font-mono text-slate-300">Pod</div>
             </div>
           </div>
         </div>
@@ -299,26 +328,26 @@
         <div class="space-y-2 pt-1">
           <h3 class="text-[11px] font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1.5">
             <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
-            <span>Blue's Past Sightings</span>
+            <span>Blue's Past Sightings & Rescue</span>
           </h3>
           <div class="grid grid-cols-3 gap-2">
-            <div onclick="openLightbox('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80')" class="aspect-square rounded-lg overflow-hidden border border-slate-800 bg-slate-900 cursor-pointer hover:border-sky-400 transition group relative">
-              <img src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=400&q=80" alt="Cape Point" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
-              <div class="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[9px] font-mono text-slate-300">Cape Point</div>
+            <div onclick="openLightbox('Bluesurfacing1.jpg')" class="aspect-square rounded-lg overflow-hidden border border-slate-800 bg-slate-900 cursor-pointer hover:border-sky-400 transition group relative">
+              <img src="Bluesurfacing1.jpg" alt="Surface" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+              <div class="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[9px] font-mono text-slate-300">Surface</div>
             </div>
-            <div onclick="openLightbox('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80')" class="aspect-square rounded-lg overflow-hidden border border-slate-800 bg-slate-900 cursor-pointer hover:border-sky-400 transition group relative">
-              <img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80" alt="False Bay" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
-              <div class="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[9px] font-mono text-slate-300">False Bay</div>
+            <div onclick="openLightbox('Bluesurfacing2.jpg')" class="aspect-square rounded-lg overflow-hidden border border-slate-800 bg-slate-900 cursor-pointer hover:border-sky-400 transition group relative">
+              <img src="Bluesurfacing2.jpg" alt="surface2" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+              <div class="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[9px] font-mono text-slate-300">Rescue</div>
             </div>
-            <div onclick="openLightbox('https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?auto=format&fit=crop&w=1200&q=80')" class="aspect-square rounded-lg overflow-hidden border border-slate-800 bg-slate-900 cursor-pointer hover:border-sky-400 transition group relative">
-              <img src="https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?auto=format&fit=crop&w=400&q=80" alt="Hout Bay" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
-              <div class="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[9px] font-mono text-slate-300">Hout Bay</div>
+            <div onclick="openLightbox('Bluewithpod.jpg')" class="aspect-square rounded-lg overflow-hidden border border-slate-800 bg-slate-900 cursor-pointer hover:border-sky-400 transition group relative">
+              <img src="Bluewithpod.jpg" alt="Blue Pod" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+              <div class="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[9px] font-mono text-slate-300">Portrait</div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- LOGS TAB (HOURLY INTERVALS ONLY) -->
+      <!-- LOGS TAB -->
       <div id="tab-logs" class="space-y-2 hidden">
         <div id="logItem0" class="flex items-center justify-between p-2.5 rounded-lg bg-slate-900 border border-slate-800">
           <div>
@@ -447,6 +476,7 @@
     let isSheetExpanded = false;
     let audioEnabled = false;
     let audioCtx = null;
+    let deferredPrompt = null;
 
     function playSonarPing() {
       if (!audioEnabled) return;
@@ -715,7 +745,32 @@
       }
     });
 
-    // TIME-BASED GREETING CALCULATOR
+    // PWA Install Prompt Listener
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      const banner = document.getElementById("pwaInstallBanner");
+      banner.classList.remove("translate-y-32", "opacity-0", "pointer-events-none");
+    });
+
+    document.getElementById("pwaInstallBtn").addEventListener("click", async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === "accepted") {
+          showToast("Thank you for installing Blue Tracker!");
+        }
+        deferredPrompt = null;
+        dismissPwaPrompt();
+      }
+    });
+
+    function dismissPwaPrompt() {
+      const banner = document.getElementById("pwaInstallBanner");
+      banner.classList.add("translate-y-32", "opacity-0", "pointer-events-none");
+    }
+
+    // DYNAMIC TIME-BASED GREETING CALCULATOR
     function getGreeting() {
       const hour = new Date().getHours();
       if (hour >= 5 && hour < 12) {
@@ -733,13 +788,12 @@
       const greetingBox = document.getElementById("greetingText");
       const overlay = document.getElementById("loadingOverlay");
 
-      // Set greeting dynamically on boot
       if (greetingBox) {
         greetingBox.textContent = getGreeting();
       }
 
-      setTimeout(() => { progressBar.style.width = "35%"; statusText.textContent = "Locking satellite ARGOS-SAT 9821..."; }, 300);
-      setTimeout(() => { progressBar.style.width = "70%"; statusText.textContent = "Syncing ocean telemetry..."; }, 800);
+      setTimeout(() => { progressBar.style.width = "35%"; statusText.textContent = "Connecting to ARGOS satellite feed..."; }, 300);
+      setTimeout(() => { progressBar.style.width = "70%"; statusText.textContent = "Locking live ocean coordinates..."; }, 800);
       setTimeout(() => { progressBar.style.width = "100%"; statusText.textContent = "Telemetry locked. Rendering map..."; }, 1300);
 
       setTimeout(() => {
