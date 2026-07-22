@@ -1,1 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Blue · Live Ocean Telemetry System</title>
+  <meta name="description" content="telemetry for Blue" />
+  <meta name="theme-color" content="#0b0f19" />
 
+  <!-- Web App & Mobile Icon Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Blue" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <link rel="apple-touch-icon" href="https://img.icons8.com/color/512/dolphin.png" />
+  <link rel="icon" type="image/png" href="https://img.icons8.com/color/512/dolphin.png" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    body {
+      background-color: #0b0f19;
+      color: #f1f5f9;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .leaflet-container {
+      background: #060911 !important;
+    }
+    @keyframes pulseRing {
+      0% { transform: scale(0.6); opacity: 1; }
+      100% { transform: scale(2.4); opacity: 0; }
+    }
+    @keyframes sonarScan {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes marqueeText {
+      0% { transform: translateX(100%); }
+      100% { transform: translateX(-100%); }
+    }
+    .sonar-line {
+      transform-origin: center;
+      animation: sonarScan 2.5s linear infinite;
+    }
+    .animate-marquee {
+      display: inline-block;
+      white-space: nowrap;
+      animation: marqueeText 24s linear infinite;
+    }
+    .animate-marquee:hover {
+      animation-play-state: paused;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .sheet-transition {
+      transition: height 0.35s cubic-bezier(0.16, 1, 0.3, 1), max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+  </style>
+</head>
+<body class="relative w-full h-screen bg-[#0b0f19] text-slate-100 font-sans overflow-hidden flex flex-col">
+
+  <!-- TELEMETRY INITIALIZATION LOADING SCREEN -->
+  <div id="loadingOverlay" class="fixed inset-0 z-50 bg-[#060911] flex flex-col items-center justify-center p-6 transition-opacity duration-700">
+    
+    <!-- Dynamic Time-Based Greeting for Katelynn -->
+    <div id="greetingText" class="text-center font-mono font-bold text-cyan-400 text-sm tracking-wider uppercase mb-6 drop-shadow-[0_0_10px_rgba(0,240,255,0.6)]">
+      Good morning Katelynn
+    </div>
+
+    <div class="relative w-32 h-32 mb-6 flex items-center justify-center">
+      <div class="absolute inset-0 rounded-full border border-cyan-500/30"></div>
+      <div class="absolute inset-3 rounded-full border border-cyan-500/20"></div>
+      <div class="absolute inset-8 rounded-full border border-cyan-500/40"></div>
+      <div class="absolute inset-0 rounded-full border-t-2 border-cyan-400/80 sonar-line"></div>
+      <div class="relative z-10 w-10 h-10 text-cyan-400">
+        <svg viewBox="0 0 24 24" fill="currentColor" class="w-full h-full drop-shadow-[0_0_8px_rgba(0,240,255,0.8)]">
+          <path d="M3 20c2-3 5.5-8 11-8 4.5 0 7 2.5 7 2.5S17.5 7 10 7C5.5 7 3.5 13 3 20z" />
+        </svg>
+      </div>
+    </div>
+
+    <div class="text-center space-y-2">
+      <div class="flex items-center justify-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+        <h2 class="text-sm font-mono tracking-widest text-cyan-400 uppercase font-bold">Connecting Ocean Telemetry</h2>
+      </div>
+      <p id="loadingStatusText" class="text-xs text-slate-400 font-mono">Locking satellite ARGOS-SAT 9821...</p>
+    </div>
+
+    <div class="w-48 h-1 bg-slate-800 rounded-full mt-6 overflow-hidden">
+      <div id="loadingProgressBar" class="h-full bg-cyan-400 w-0 transition-all duration-300"></div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Bar -->
+  <div id="toastNotification" class="fixed top-16 left-1/2 -translate-x-1/2 z-40 bg-cyan-950/95 border border-cyan-500/80 text-cyan-200 px-4 py-2 rounded-full text-xs font-semibold backdrop-blur-md shadow-2xl opacity-0 transition-all duration-300 pointer-events-none flex items-center gap-2">
+    <i data-lucide="check-circle" class="w-4 h-4 text-cyan-400"></i>
+    <span id="toastMessage">App link copied to clipboard!</span>
+  </div>
+
+  <!-- Top Controls Bar -->
+  <div class="absolute top-4 left-4 right-4 z-20 flex justify-between items-center pointer-events-none">
+    <div class="flex items-center gap-2 pointer-events-auto">
+      <button
+        id="shareBtn"
+        class="flex items-center gap-2 px-3.5 py-2 rounded-full bg-slate-900/90 backdrop-blur-md border border-slate-700/80 text-xs font-semibold tracking-wide text-slate-200 shadow-xl hover:bg-slate-800 transition active:scale-95"
+      >
+        <i data-lucide="share-2" class="w-3.5 h-3.5 text-cyan-400"></i>
+        <span>Share</span>
+      </button>
+
+      <!-- ZOOM TO BLUE BUTTON -->
+      <button
+        onclick="zoomInOnBlue()"
+        class="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-slate-900/90 backdrop-blur-md border border-cyan-500/50 text-xs font-semibold tracking-wide text-cyan-300 shadow-xl hover:bg-slate-800 transition active:scale-95"
+        title="Zoom closely to watch Blue swim"
+      >
+        <i data-lucide="zoom-in" class="w-3.5 h-3.5 text-cyan-400"></i>
+        <span>Zoom</span>
+      </button>
+
+      <button
+        id="audioToggleBtn"
+        onclick="toggleAudio()"
+        class="flex items-center justify-center w-9 h-9 rounded-full bg-slate-900/90 backdrop-blur-md border border-slate-700/80 text-slate-400 hover:text-cyan-400 shadow-xl transition active:scale-95"
+        title="Toggle Sonar Audio"
+      >
+        <i id="audioIcon" data-lucide="volume-x" class="w-4 h-4"></i>
+      </button>
+    </div>
+
+    <!-- Theme Switcher -->
+    <div class="pointer-events-auto flex items-center gap-1.5 p-1 rounded-full bg-slate-900/90 backdrop-blur-md border border-slate-700/80 shadow-xl">
+      <div class="px-2 text-slate-400">
+        <i data-lucide="palette" class="w-3.5 h-3.5"></i>
+      </div>
+      <button onclick="setTheme('blue')" id="theme-blue" class="w-5 h-5 rounded-full bg-[#00f0ff] ring-2 ring-white scale-110 transition-transform" title="Neon Blue"></button>
+      <button onclick="setTheme('pink')" id="theme-pink" class="w-5 h-5 rounded-full bg-[#ff007f] opacity-60 hover:opacity-100 transition-transform" title="Hot Pink"></button>
+      <button onclick="setTheme('purple')" id="theme-purple" class="w-5 h-5 rounded-full bg-[#a855f7] opacity-60 hover:opacity-100 transition-transform" title="Vivid Purple"></button>
+      <button onclick="setTheme('gold')" id="theme-gold" class="w-5 h-5 rounded-full bg-[#eab308] opacity-60 hover:opacity-100 transition-transform" title="Ocean Gold"></button>
+    </div>
+  </div>
+
+  <!-- Map Canvas Container -->
+  <div class="relative w-full flex-1 z-10">
+    <div id="map" class="w-full h-full"></div>
+  </div>
+
+  <!-- EXPANDABLE DASHBOARD SHEET -->
+  <div id="dashboardSheet" class="relative z-30 bg-[#0b0f19] border-t border-slate-800 flex flex-col justify-between overflow-hidden shadow-[0_-12px_40px_rgba(0,0,0,0.95)] sheet-transition h-[210px]">
+    
+    <!-- Drag Handle / Collapse Toggle Button -->
+    <div onclick="toggleSheet()" class="w-full py-1.5 bg-slate-950 border-b border-slate-800/60 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-900 transition group shrink-0">
+      <div class="w-12 h-1 bg-slate-700 rounded-full group-hover:bg-cyan-400 transition mb-1"></div>
+      <div class="flex items-center gap-1 text-[10px] text-slate-400 font-mono uppercase tracking-wider group-hover:text-cyan-300">
+        <span id="sheetToggleText">Tap to Expand Dashboard</span>
+        <i id="sheetToggleIcon" data-lucide="chevron-up" class="w-3.5 h-3.5 transition-transform duration-300"></i>
+      </div>
+    </div>
+
+    <!-- Header Profile Section -->
+    <div class="px-4 py-2.5 bg-slate-950/80 border-b border-slate-800/60 shrink-0 space-y-2">
+      <div class="flex justify-between items-center">
+        <div class="flex items-center gap-2">
+          <button onclick="centerOnDolphin()" class="flex items-center gap-1.5 group text-left">
+            <h1 class="text-xl font-bold tracking-tight text-white group-hover:text-cyan-400 transition">Blue</h1>
+            <i data-lucide="target" class="w-4 h-4 text-cyan-400 opacity-80 group-hover:scale-125 transition-transform"></i>
+          </button>
+          <span class="text-[11px] px-2 py-0.5 rounded-full bg-cyan-950/90 text-cyan-300 border border-cyan-800/60 font-semibold">
+            Bottlenose Dolphin
+          </span>
+        </div>
+
+        <button onclick="centerOnDolphin()" class="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/80 border border-emerald-700/60 hover:bg-emerald-900/60 transition active:scale-95 shadow-lg">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <span class="text-[11px] font-mono font-bold tracking-wider text-emerald-300 uppercase">
+            LIVE
+          </span>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-400">
+        Length: <strong class="text-slate-200">2.4m</strong> • Mass:
+        <strong class="text-slate-200">210kg</strong> • Tag:
+        <strong class="text-slate-200">SAT-9821</strong>
+      </p>
+
+      <!-- Ocean Metrics -->
+      <div class="grid grid-cols-4 gap-1.5 pt-0.5">
+        <div class="bg-slate-900/90 border border-slate-800/80 rounded-lg p-1.5 text-center">
+          <span class="text-[9px] text-slate-400 font-mono uppercase block flex items-center justify-center gap-1">
+            <i data-lucide="thermometer" class="w-3 h-3 text-emerald-400"></i> Temp
+          </span>
+          <span id="seaTemp" class="text-xs font-bold text-emerald-300">18.8°C</span>
+        </div>
+
+        <div class="bg-slate-900/90 border border-slate-800/80 rounded-lg p-1.5 text-center">
+          <span class="text-[9px] text-slate-400 font-mono uppercase block flex items-center justify-center gap-1">
+            <i data-lucide="waves" class="w-3 h-3 text-cyan-400"></i> Swell
+          </span>
+          <span id="waveHeight" class="text-xs font-bold text-cyan-300">1.4 m</span>
+        </div>
+
+        <div class="bg-slate-900/90 border border-slate-800/80 rounded-lg p-1.5 text-center">
+          <span class="text-[9px] text-slate-400 font-mono uppercase block flex items-center justify-center gap-1">
+            <i data-lucide="gauge" class="w-3 h-3 text-sky-400"></i> Speed
+          </span>
+          <span id="speedMetric" class="text-xs font-bold text-sky-300">14.2 km/h</span>
+        </div>
+
+        <div class="bg-slate-900/90 border border-slate-800/80 rounded-lg p-1.5 text-center">
+          <span class="text-[9px] text-slate-400 font-mono uppercase block flex items-center justify-center gap-1">
+            <i data-lucide="arrow-down" class="w-3 h-3 text-indigo-400"></i> Depth
+          </span>
+          <span id="depthMetric" class="text-xs font-bold text-indigo-300">-8.4m</span>
+        </div>
+      </div>
+
+      <!-- Navigation Tab Controls & Region Badge -->
+      <div class="flex items-center justify-between pt-1">
+        <div class="flex items-center gap-4">
+          <button
+            id="tab-about-btn"
+            onclick="switchTab('about')"
+            class="flex items-center gap-1.5 pb-0.5 text-xs font-bold border-b-2 border-cyan-400 text-cyan-400 transition"
+          >
+            <i data-lucide="info" class="w-3.5 h-3.5"></i>
+            <span>About</span>
+          </button>
+
+          <button
+            id="tab-logs-btn"
+            onclick="switchTab('logs')"
+            class="flex items-center gap-1.5 pb-0.5 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition"
+          >
+            <i data-lucide="list-tree" class="w-3.5 h-3.5"></i>
+            <span>Telemetry Logs</span>
+          </button>
+        </div>
+
+        <div class="flex items-center gap-1 text-[10px] text-slate-400 font-mono truncate max-w-[170px]">
+          <i data-lucide="compass" class="w-3 h-3 text-cyan-400 shrink-0"></i>
+          <span id="regionLabel" class="truncate font-semibold text-slate-300">Cape Peninsula Basin</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab Content Body -->
+    <div id="sheetBodyContent" class="flex-1 overflow-y-auto p-4 space-y-4 text-slate-300 text-xs no-scrollbar">
+      <!-- ABOUT TAB -->
+      <div id="tab-about" class="space-y-4">
+        <p class="leading-relaxed text-slate-300">
+          Blue is a resilient Bottlenose dolphin rescued during an ocean stranding event and successfully rehabilitated before being tagged and re-released into open waters. Fitted with an ARGOS satellite telemetry unit (Tag SAT-9821), Blue now traverses deep coastal shelves, riding high wave energy and hunting schooling fish along bay channels. Her movement data directly supports marine conservation tracking
+
+
+        </p>
+
+        <!-- Gallery Section 1: Blue -->
+        <div class="space-y-2">
+          <h3 class="text-[11px] font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+            <i data-lucide="camera" class="w-3.5 h-3.5"></i>
+            <span>Blue </span>
+          </h3>
+          <div class="grid grid-cols-3 gap-2">
+            <div onclick="blue.jpgauto=format&fit=crop&w=1200&q=80')" class="aspect-square rounded-lg overflow-hidden border border-slate-800 bg-slate-900 cursor-pointer hover:border-cyan-400 transition group relative">
+              <img src="blue.jpgauto=format&fit=crop&w=400&q=80" alt="Blue Surfacing" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+              <div class="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[9px] font-mono text-slate-300">Surfacing</div>
+            </div>
+            <div onclick="openLightbox('https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=1200&q=80')" class="aspect-square rounded-lg overflow-hidden border border-slate-800 bg-slate-900 cursor-pointer hover:border-cyan-400 transition group relative">
+              <img src="https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=400&q=80" alt="Blue Swimming" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+              <div class="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[9px] font-mono text-slate-300">Cruising</div>
+            </div>
+            <div onclick="openLightbox('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80')" class="aspect-square rounded-lg overflow-hidden border border-slate-800 bg-slate-900 cursor-pointer hover:border-cyan-400 transition group relative">
+              <img src="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=400&q=80" alt="Blue Leaping" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+              <div class="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[9px] font-mono text-slate-300">Breaching</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gallery Section 2: Blue's Past Sightings -->
+        <div class="space-y-2 pt-1">
+          <h3 class="text-[11px] font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1.5">
+            <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
+            <span>Blue's Past Sightings</span>
+          </h3>
+          <div class="grid grid-cols-3 gap-2">
+            <div onclick="openLightbox('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80')" class="aspect-square rounded-lg overflow-hidden border border-slate-800 bg-slate-900 cursor-pointer hover:border-sky-400 transition group relative">
+              <img src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=400&q=80" alt="Cape Point" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+              <div class="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[9px] font-mono text-slate-300">Cape Point</div>
+            </div>
+            <div onclick="openLightbox('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80')" class="aspect-square rounded-lg overflow-hidden border border-slate-800 bg-slate-900 cursor-pointer hover:border-sky-400 transition group relative">
+              <img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80" alt="False Bay" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+              <div class="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[9px] font-mono text-slate-300">False Bay</div>
+            </div>
+            <div onclick="openLightbox('https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?auto=format&fit=crop&w=1200&q=80')" class="aspect-square rounded-lg overflow-hidden border border-slate-800 bg-slate-900 cursor-pointer hover:border-sky-400 transition group relative">
+              <img src="https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?auto=format&fit=crop&w=400&q=80" alt="Hout Bay" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+              <div class="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[9px] font-mono text-slate-300">Hout Bay</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LOGS TAB (HOURLY INTERVALS ONLY) -->
+      <div id="tab-logs" class="space-y-2 hidden">
+        <div id="logItem0" class="flex items-center justify-between p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+          <div>
+            <span id="logLocation0" class="font-bold text-slate-100 block">False Bay Central Basin</span>
+            <span id="logSub0" class="text-[10px] text-slate-400">Bay Stay: Day 2 of 3 • GPS Ping Verified</span>
+          </div>
+          <span class="text-[10px] font-mono text-cyan-400 bg-cyan-950 px-2 py-0.5 rounded border border-cyan-800">1h ago</span>
+        </div>
+
+        <div id="logItem1" class="flex items-center justify-between p-2.5 rounded-lg bg-slate-900/60 border border-slate-800/60">
+          <div>
+            <span id="logLocation1" class="font-semibold text-slate-300 block">Fish Hoek Outer Trench</span>
+            <span id="logSub1" class="text-[10px] text-slate-400">Bay Stay: Day 2 of 3 • Coastal Foraging</span>
+          </div>
+          <span class="text-[10px] font-mono text-slate-400">2h ago</span>
+        </div>
+
+        <div id="logItem2" class="flex items-center justify-between p-2.5 rounded-lg bg-slate-900/40 border border-slate-800/40 opacity-75">
+          <div>
+            <span id="logLocation2" class="font-semibold text-slate-300 block">Simon's Town Deep Ridge</span>
+            <span id="logSub2" class="text-[10px] text-slate-400">Bay Stay: Day 2 of 3 • Deep Dive (-14m)</span>
+          </div>
+          <span class="text-[10px] font-mono text-slate-500">3h ago</span>
+        </div>
+
+        <div class="flex items-center justify-between p-2.5 rounded-lg bg-slate-900/20 border border-slate-800/30 opacity-50">
+          <div>
+            <span id="logLocation3" class="font-semibold text-slate-300 block">Cape Point Entrance Channel</span>
+            <span id="logSub3" class="text-[10px] text-slate-400">Bay Stay: Day 1 of 3 • Transit Arrival</span>
+          </div>
+          <span class="text-[10px] font-mono text-slate-600">4h ago</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- FACT MARQUEE FOOTER BAR -->
+    <div class="p-2.5 bg-slate-950 border-t border-slate-800 flex items-center overflow-hidden shrink-0">
+      <div class="shrink-0 z-10 bg-slate-950 pr-2 flex items-center gap-1.5 border-r border-slate-800">
+        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+        <span class="text-[10px] font-mono font-bold text-cyan-400 uppercase">DYK:</span>
+      </div>
+      <div class="overflow-hidden w-full relative">
+        <div id="factMarquee" class="animate-marquee italic text-slate-300 text-xs pl-4">
+          Blue's satellite tag transmits ultra-short burst telemetry to ARGOS satellites during surface breaths.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LIGHTBOX MODAL -->
+  <div id="lightboxModal" class="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 opacity-0 pointer-events-none transition-opacity duration-300" onclick="closeLightbox()">
+    <button onclick="closeLightbox()" class="absolute top-6 right-6 p-2.5 rounded-full bg-slate-900 border border-slate-700 text-white hover:bg-slate-800 transition shadow-2xl">
+      <i data-lucide="x" class="w-6 h-6"></i>
+    </button>
+    <img id="lightboxImage" src="" alt="Sighting expanded" class="max-w-full max-h-[85vh] rounded-xl object-contain shadow-2xl border border-slate-800" />
+  </div>
+
+  <script>
+    lucide.createIcons();
+
+    const GITHUB_APP_URL = window.location.href;
+
+    const CAPE_PENINSULA_OCEAN_NODES = [
+      { lat: -33.8950, lng: 18.3800, name: "Table Bay Deep Channel" },
+      { lat: -33.9350, lng: 18.3200, name: "Camps Bay Ocean Shelf" },
+      { lat: -34.0200, lng: 18.2700, name: "Hout Bay Outer Entrance" },
+      { lat: -34.1500, lng: 18.2400, name: "Slangkop Ocean Ridge" },
+      { lat: -34.3600, lng: 18.3000, name: "Cape of Good Hope Outer Shelf" },
+      { lat: -34.4200, lng: 18.3800, name: "Cape Peninsula Deep Trench" },
+      { lat: -34.3400, lng: 18.5800, name: "False Bay Outer Basin" },
+      { lat: -34.2200, lng: 18.6800, name: "False Bay East Channel" },
+      { lat: -34.3500, lng: 18.8200, name: "Cape Hangklip Ocean Passage" },
+      { lat: -34.4500, lng: 18.6000, name: "Southern Ocean Boundary" },
+      { lat: -34.4200, lng: 18.3800, name: "Cape Peninsula Deep Trench" }
+    ];
+
+    function getOceanState(timestampMs) {
+      const CYCLE_TIME = 24 * 60 * 60 * 1000;
+      const progress = (timestampMs % CYCLE_TIME) / CYCLE_TIME;
+      
+      const nodes = CAPE_PENINSULA_OCEAN_NODES;
+      const count = nodes.length;
+      const exactIdx = progress * count;
+      const idx1 = Math.floor(exactIdx) % count;
+      const idx2 = (idx1 + 1) % count;
+      const ratio = exactIdx - Math.floor(exactIdx);
+
+      const p1 = nodes[idx1];
+      const p2 = nodes[idx2];
+
+      const lat = p1.lat + (p2.lat - p1.lat) * ratio;
+      const lng = p1.lng + (p2.lng - p1.lng) * ratio;
+
+      const y = Math.sin((p2.lng - p1.lng) * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180);
+      const x = Math.cos(p1.lat * Math.PI / 180) * Math.sin(p2.lat * Math.PI / 180) -
+                Math.sin(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) * Math.cos((p2.lng - p1.lng) * Math.PI / 180);
+      const bearing = ((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360;
+
+      return {
+        lat, lng, bearing,
+        locationName: p1.name,
+        regionName: "Cape Peninsula & False Bay"
+      };
+    }
+
+    const THEMES = {
+      blue: { primary: "#00f0ff", glow: "rgba(0, 240, 255, 0.4)" },
+      pink: { primary: "#ff007f", glow: "rgba(255, 0, 127, 0.4)" },
+      purple: { primary: "#a855f7", glow: "rgba(168, 85, 247, 0.4)" },
+      gold: { primary: "#eab308", glow: "rgba(234, 179, 8, 0.4)" },
+    };
+
+    const FACTS = [
+      "Blue's satellite tag transmits ultra-short burst telemetry to ARGOS satellites during surface breaths.",
+      "Bottlenose dolphins use echolocation clicks to scan underwater topography at ranges over 100 meters.",
+      "Orcas are actually the largest species in the dolphin family (Delphinidae), growing up to 9 meters long.",
+      "Dolphins match ocean wave velocity vectors to conserve up to 40% energy while surfing swells.",
+      "Hector's dolphins are the smallest marine dolphins in the world, growing to just 1.5 meters."
+    ];
+
+    let currentThemeKey = "blue";
+    let activeMap = null;
+    let solidLeadPolyline = null;
+    let dashedHistoryPolyline = null;
+    let markerRef = null;
+    let isSheetExpanded = false;
+    let audioEnabled = false;
+    let audioCtx = null;
+
+    function playSonarPing() {
+      if (!audioEnabled) return;
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.35);
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.35);
+      } catch(e){}
+    }
+
+    function toggleAudio() {
+      audioEnabled = !audioEnabled;
+      const btn = document.getElementById("audioToggleBtn");
+      const icon = document.getElementById("audioIcon");
+      if (audioEnabled) {
+        btn.classList.add("text-cyan-400", "border-cyan-500");
+        icon.setAttribute("data-lucide", "volume-2");
+        playSonarPing();
+        showToast("Sonar Audio Pinger Enabled");
+      } else {
+        btn.classList.remove("text-cyan-400", "border-cyan-500");
+        icon.setAttribute("data-lucide", "volume-x");
+        showToast("Sonar Audio Muted");
+      }
+      lucide.createIcons();
+    }
+
+    function getSplitTrailPoints(now) {
+      const historyTrail = [];
+      const leadTrail = [];
+
+      const stepMinutes = 5; 
+      const totalHistorySteps = 36;
+      const leadSteps = 4;
+
+      for (let i = totalHistorySteps; i >= leadSteps; i--) {
+        const pastTime = now - (i * stepMinutes * 60 * 1000);
+        const st = getOceanState(pastTime);
+        historyTrail.push([st.lat, st.lng]);
+      }
+
+      for (let i = leadSteps; i >= 0; i--) {
+        const pastTime = now - (i * stepMinutes * 60 * 1000);
+        const st = getOceanState(pastTime);
+        leadTrail.push([st.lat, st.lng]);
+      }
+
+      return { historyTrail, leadTrail };
+    }
+
+    function updateTelemetryLoop() {
+      const now = Date.now();
+      const state = getOceanState(now);
+      const theme = THEMES[currentThemeKey];
+
+      document.getElementById("regionLabel").textContent = state.regionName;
+      document.getElementById("speedMetric").textContent = `${(13.8 + Math.sin(now / 3500) * 2.2).toFixed(1)} km/h`;
+      document.getElementById("depthMetric").textContent = `${(-4.2 - Math.abs(Math.sin(now / 2200)) * 10.5).toFixed(1)}m`;
+
+      for (let i = 0; i < 4; i++) {
+        const pastState = getOceanState(now - ((i + 1) * 3600 * 1000));
+        document.getElementById(`logLocation${i}`).textContent = pastState.locationName;
+        document.getElementById(`logSub${i}`).textContent = `Coastal Channel • GPS Ping Verified`;
+      }
+
+      const { historyTrail, leadTrail } = getSplitTrailPoints(now);
+
+      if (dashedHistoryPolyline) {
+        dashedHistoryPolyline.setLatLngs(historyTrail);
+        dashedHistoryPolyline.setStyle({ color: theme.primary, weight: 2.5, opacity: 0.35 });
+      } else if (activeMap) {
+        dashedHistoryPolyline = L.polyline(historyTrail, {
+          color: theme.primary,
+          weight: 2.5,
+          opacity: 0.35,
+          dashArray: "4, 8"
+        }).addTo(activeMap);
+      }
+
+      if (solidLeadPolyline) {
+        solidLeadPolyline.setLatLngs(leadTrail);
+        solidLeadPolyline.setStyle({ color: theme.primary, weight: 4, opacity: 0.95 });
+      } else if (activeMap) {
+        solidLeadPolyline = L.polyline(leadTrail, {
+          color: theme.primary,
+          weight: 4,
+          opacity: 0.95
+        }).addTo(activeMap);
+      }
+
+      const markerHtml = `
+        <div style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;">
+          <div style="position: absolute; width: 100%; height: 100%; border-radius: 50%; background: ${theme.glow}; animation: pulseRing 1.8s infinite ease-out;"></div>
+          <div style="position: relative; width: 30px; height: 30px; border-radius: 50%; background: #060911; border: 2px solid ${theme.primary}; box-shadow: 0 0 14px ${theme.primary}; transform: rotate(${state.bearing}deg); display: flex; align-items: center; justify-content: center;">
+            <svg viewBox="0 0 24 24" fill="${theme.primary}" style="width: 18px; height: 18px; transform: rotate(-45deg);">
+              <path d="M3 20c2-3 5.5-8 11-8 4.5 0 7 2.5 7 2.5S17.5 7 10 7C5.5 7 3.5 13 3 20z" />
+            </svg>
+          </div>
+        </div>
+      `;
+
+      const customIcon = L.divIcon({
+        html: markerHtml,
+        className: "custom-dolphin-marker",
+        iconSize: [44, 44],
+        iconAnchor: [22, 22],
+      });
+
+      if (markerRef) {
+        markerRef.setLatLng([state.lat, state.lng]);
+        markerRef.setIcon(customIcon);
+      } else if (activeMap) {
+        markerRef = L.marker([state.lat, state.lng], { icon: customIcon }).addTo(activeMap);
+      }
+    }
+
+    function initMap() {
+      const state = getOceanState(Date.now());
+
+      activeMap = L.map("map", {
+        center: [state.lat, state.lng],
+        zoom: 11,
+        zoomControl: false,
+        attributionControl: false,
+      });
+
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+        maxZoom: 18,
+        subdomains: "abcd",
+      }).addTo(activeMap);
+
+      setTimeout(() => { activeMap.invalidateSize(); }, 400);
+
+      fetchMarineData(state.lat, state.lng);
+      updateTelemetryLoop();
+    }
+
+    function centerOnDolphin() {
+      if (!activeMap) return;
+      playSonarPing();
+      const state = getOceanState(Date.now());
+      activeMap.flyTo([state.lat, state.lng], 11, { duration: 1.2 });
+      showToast(`Centered on Blue (${state.locationName})`);
+    }
+
+    function zoomInOnBlue() {
+      if (!activeMap) return;
+      playSonarPing();
+      const state = getOceanState(Date.now());
+      activeMap.flyTo([state.lat, state.lng], 14, { duration: 1.5 });
+      showToast(`Zoomed in close to Blue!`);
+    }
+
+    function toggleSheet() {
+      const sheet = document.getElementById("dashboardSheet");
+      const icon = document.getElementById("sheetToggleIcon");
+      const text = document.getElementById("sheetToggleText");
+      isSheetExpanded = !isSheetExpanded;
+
+      if (isSheetExpanded) {
+        sheet.style.height = "75vh";
+        icon.style.transform = "rotate(180deg)";
+        text.textContent = "Tap to Collapse Dashboard";
+      } else {
+        sheet.style.height = "210px";
+        icon.style.transform = "rotate(0deg)";
+        text.textContent = "Tap to Expand Dashboard";
+      }
+      setTimeout(() => { if (activeMap) activeMap.invalidateSize(); }, 400);
+    }
+
+    function openLightbox(src) {
+      document.getElementById("lightboxImage").src = src;
+      const modal = document.getElementById("lightboxModal");
+      modal.classList.remove("opacity-0", "pointer-events-none");
+    }
+
+    function closeLightbox() {
+      const modal = document.getElementById("lightboxModal");
+      modal.classList.add("opacity-0", "pointer-events-none");
+    }
+
+    function fetchMarineData(lat, lng) {
+      fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}&current=wave_height,sea_water_temperature`)
+        .then(res => res.json())
+        .then(data => {
+          if (data?.current?.sea_water_temperature !== undefined && data.current.sea_water_temperature !== null) {
+            document.getElementById("seaTemp").textContent = `${Math.round(data.current.sea_water_temperature * 10) / 10}°C`;
+          } else {
+            document.getElementById("seaTemp").textContent = "18.8°C";
+          }
+          if (data?.current?.wave_height !== undefined && data.current.wave_height !== null) {
+            document.getElementById("waveHeight").textContent = `${Math.round(data.current.wave_height * 10) / 10} m`;
+          } else {
+            document.getElementById("waveHeight").textContent = "1.4 m";
+          }
+        })
+        .catch(() => {
+          document.getElementById("seaTemp").textContent = "18.8°C";
+          document.getElementById("waveHeight").textContent = "1.4 m";
+        });
+    }
+
+    function setTheme(key) {
+      currentThemeKey = key;
+      ["blue", "pink", "purple", "gold"].forEach(k => {
+        const btn = document.getElementById(`theme-${k}`);
+        if (k === key) {
+          btn.classList.add("ring-2", "ring-white", "scale-110");
+          btn.classList.remove("opacity-60");
+        } else {
+          btn.classList.remove("ring-2", "ring-white", "scale-110");
+          btn.classList.add("opacity-60");
+        }
+      });
+      updateTelemetryLoop();
+    }
+
+    function switchTab(tab) {
+      const aboutTab = document.getElementById("tab-about");
+      const logsTab = document.getElementById("tab-logs");
+      const aboutBtn = document.getElementById("tab-about-btn");
+      const logsBtn = document.getElementById("tab-logs-btn");
+
+      if (tab === "about") {
+        aboutTab.classList.remove("hidden");
+        logsTab.classList.add("hidden");
+        aboutBtn.className = "flex items-center gap-1.5 pb-0.5 text-xs font-bold border-b-2 border-cyan-400 text-cyan-400 transition";
+        logsBtn.className = "flex items-center gap-1.5 pb-0.5 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition";
+      } else {
+        aboutTab.classList.add("hidden");
+        logsTab.classList.remove("hidden");
+        logsBtn.className = "flex items-center gap-1.5 pb-0.5 text-xs font-bold border-b-2 border-cyan-400 text-cyan-400 transition";
+        aboutBtn.className = "flex items-center gap-1.5 pb-0.5 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition";
+      }
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById("toastNotification");
+      document.getElementById("toastMessage").textContent = msg;
+      toast.classList.remove("opacity-0", "pointer-events-none");
+      setTimeout(() => {
+        toast.classList.add("opacity-0", "pointer-events-none");
+      }, 2500);
+    }
+
+    document.getElementById("shareBtn").addEventListener("click", () => {
+      if (navigator.share) {
+        navigator.share({
+          title: "Blue · Live Ocean Telemetry",
+          text: "Track Blue the Bottlenose dolphin live on satellite ocean maps!",
+          url: GITHUB_APP_URL,
+        }).catch(() => {});
+      } else {
+        navigator.clipboard.writeText(GITHUB_APP_URL);
+        showToast("Telemetry share link copied to clipboard!");
+      }
+    });
+
+    // TIME-BASED GREETING CALCULATOR
+    function getGreeting() {
+      const hour = new Date().getHours();
+      if (hour >= 5 && hour < 12) {
+        return "Good morning Katelynn";
+      } else if (hour >= 12 && hour < 17) {
+        return "Good afternoon Katelynn";
+      } else {
+        return "Good evening Katelynn";
+      }
+    }
+
+    function runBootSequence() {
+      const progressBar = document.getElementById("loadingProgressBar");
+      const statusText = document.getElementById("loadingStatusText");
+      const greetingBox = document.getElementById("greetingText");
+      const overlay = document.getElementById("loadingOverlay");
+
+      // Set greeting dynamically on boot
+      if (greetingBox) {
+        greetingBox.textContent = getGreeting();
+      }
+
+      setTimeout(() => { progressBar.style.width = "35%"; statusText.textContent = "Locking satellite ARGOS-SAT 9821..."; }, 300);
+      setTimeout(() => { progressBar.style.width = "70%"; statusText.textContent = "Syncing ocean telemetry..."; }, 800);
+      setTimeout(() => { progressBar.style.width = "100%"; statusText.textContent = "Telemetry locked. Rendering map..."; }, 1300);
+
+      setTimeout(() => {
+        initMap();
+        overlay.classList.add("opacity-0", "pointer-events-none");
+      }, 1700);
+    }
+
+    let factIdx = 0;
+    setInterval(() => {
+      factIdx = (factIdx + 1) % FACTS.length;
+      document.getElementById("factMarquee").textContent = FACTS[factIdx];
+    }, 12000);
+
+    setInterval(updateTelemetryLoop, 1000);
+
+    window.addEventListener("DOMContentLoaded", runBootSequence);
+  </script>
+</body>
+</html>
